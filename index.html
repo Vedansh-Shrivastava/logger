@@ -1,0 +1,1089 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ai-cli-log</title>
+    <style>
+        /* Terminal color palette */
+        :root {
+            --bg: #0d1117;
+            --bg-panel: #161b22;
+            --bg-input: #21262d;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-dim: #8b949e;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --blue: #58a6ff;
+            --purple: #bc8cff;
+            --font: 'Courier New', Courier, monospace;
+        }
+
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 13px;
+            min-height: 100vh;
+            padding: 12px;
+        }
+
+        h1 {
+            font-size: 16px;
+            color: var(--blue);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* Stats Bar */
+        #stats-bar {
+            display: flex;
+            gap: 16px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 14px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-label {
+            color: var(--text-dim);
+        }
+
+        .stat-value {
+            font-weight: bold;
+            min-width: 28px;
+            text-align: right;
+        }
+
+        #stat-total {
+            color: var(--text);
+        }
+
+        #stat-errors {
+            color: var(--red);
+        }
+
+        #stat-warnings {
+            color: var(--yellow);
+        }
+
+        #stat-success {
+            color: var(--green);
+        }
+
+        /* Health badge */
+        #health-badge {
+            margin-left: auto;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            background: var(--bg-input);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #health-badge.healthy {
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        #health-badge.degraded {
+            color: var(--yellow);
+            border-color: var(--yellow);
+        }
+
+        #health-badge.critical {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        /* CLI input row */
+        #cli-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        #cli-input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 13px;
+            padding: 6px 10px;
+            outline: none;
+        }
+
+        #cli-input:focus {
+            border-color: var(--blue);
+        }
+
+        /* Buttons */
+        button {
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 12px;
+            padding: 6px 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: border-color 0.15s, color 0.15s;
+        }
+
+        button:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+        }
+
+        #capture-btn {
+            color: var(--green);
+            border-color: var(--green);
+        }
+
+        #capture-btn:hover {
+            background: rgba(63, 185, 80, 0.1);
+        }
+
+        #clear-btn {
+            color: var(--red);
+            border-color: var(--red);
+        }
+
+        #clear-btn:hover {
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        #analyze-btn {
+            color: var(--purple);
+            border-color: var(--purple);
+        }
+
+        #analyze-btn:hover {
+            background: rgba(188, 140, 255, 0.1);
+        }
+
+        /* Preset buttons row */
+        #preset-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+
+        #preset-row button {
+            font-size: 11px;
+        }
+
+        /* Two-column main layout */
+        #main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 639px) {
+            #main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dim);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Terminal Panel */
+        #terminal-panel {
+            height: 340px;
+            overflow-y: auto;
+            padding: 8px 10px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        #terminal-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #terminal-panel::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        #terminal-panel::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .log-line {
+            padding: 1px 0;
+        }
+
+        .log-line.error {
+            color: var(--red);
+        }
+
+        .log-line.warn {
+            color: var(--yellow);
+        }
+
+        .log-line.ok {
+            color: var(--green);
+        }
+
+        .log-line.info {
+            color: var(--text);
+        }
+
+        /* Raw Paste Panel */
+        #raw-paste-panel {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #raw-textarea {
+            flex: 1;
+            height: 290px;
+            background: var(--bg-input);
+            border: none;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 12px;
+            padding: 8px 10px;
+            resize: none;
+            outline: none;
+            line-height: 1.6;
+        }
+
+        #raw-paste-panel .panel-footer {
+            padding: 6px 10px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* AI section */
+        #ai-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px 14px;
+        }
+
+        #ai-key-row {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        #ai-key-label {
+            color: var(--text-dim);
+            font-size: 11px;
+            white-space: nowrap;
+        }
+
+        #ai-key-input {
+            flex: 1;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 12px;
+            padding: 5px 10px;
+            outline: none;
+        }
+
+        #ai-key-input:focus {
+            border-color: var(--purple);
+        }
+
+        #ai-panel {
+            min-height: 60px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: var(--text-dim);
+        }
+
+        #ai-panel .ai-placeholder {
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        #ai-panel .ai-error {
+            color: var(--red);
+        }
+
+        #ai-panel .ai-loading {
+            color: var(--blue);
+        }
+
+        /* Bottom action row */
+        #action-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>⬛ ai-cli-log</h1>
+
+    <!-- Stats Bar -->
+    <div id="stats-bar">
+        <div class="stat-item">
+            <span class="stat-label">Total</span>
+            <span class="stat-value" id="stat-total">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Errors</span>
+            <span class="stat-value" id="stat-errors">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Warnings</span>
+            <span class="stat-value" id="stat-warnings">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Success</span>
+            <span class="stat-value" id="stat-success">0</span>
+        </div>
+        <span id="health-badge">—</span>
+    </div>
+
+    <!-- CLI Input Row -->
+    <div id="cli-row">
+        <input id="cli-input" type="text" placeholder="Paste or type a log line and press Enter…" autocomplete="off" spellcheck="false" />
+        <button id="capture-btn">Capture</button>
+    </div>
+
+    <!-- Preset Buttons -->
+    <div id="preset-row">
+        <button id="preset-npm" data-preset="npm-install">npm-install</button>
+        <button id="preset-docker" data-preset="docker-build">docker-build</button>
+        <button id="preset-python" data-preset="python-app">python-app</button>
+        <button id="preset-nginx" data-preset="nginx-logs">nginx-logs</button>
+        <button id="clear-btn" style="margin-left:auto">Clear Session</button>
+    </div>
+
+    <!-- Two-column main grid: Terminal Panel + Raw Paste Panel -->
+    <div id="main-grid">
+
+        <!-- Terminal Panel -->
+        <div class="panel">
+            <div class="panel-header">Terminal Output</div>
+            <div id="terminal-panel"></div>
+        </div>
+
+        <!-- Raw Paste Panel -->
+        <div class="panel" id="raw-paste-panel">
+            <div class="panel-header">Raw Paste</div>
+            <textarea id="raw-textarea" placeholder="Paste raw log output here…" spellcheck="false"></textarea>
+            <div class="panel-footer">
+                <button id="parse-btn">Parse Raw Logs</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- AI Section -->
+    <div id="ai-section">
+        <div id="ai-key-row">
+            <label id="ai-key-label" for="ai-key-input">NVIDIA API Key</label>
+            <input id="ai-key-input" type="password" placeholder="nvapi-…" autocomplete="off" spellcheck="false" />
+            <button id="analyze-btn">Analyze with AI</button>
+        </div>
+        <div id="ai-panel">
+            <span class="ai-placeholder">AI analysis will appear here after clicking "Analyze with AI".</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Escape &, <, > in a string before DOM insertion.
+         * @param {string} str
+         * @returns {string}
+         */
+        function escHtml(str) {
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
+        /**
+         * Classify severity using ordered regex heuristics.
+         * Returns 'error' | 'warn' | 'ok' | 'info'
+         * @param {string} text
+         * @returns {'error'|'warn'|'ok'|'info'}
+         */
+        function classify(text) {
+            // Priority 1: error (case-insensitive except ENOENT, ECONNREFUSED, ERESOLVE)
+            if (
+                /\berror\b/i.test(text) ||
+                /\bexception\b/i.test(text) ||
+                /\bfatal\b/i.test(text) ||
+                /\bfailed\b/i.test(text) ||
+                /\bfailure\b/i.test(text) ||
+                /ENOENT/.test(text) ||
+                /ECONNREFUSED/.test(text) ||
+                /ERESOLVE/.test(text) ||
+                /non-zero/i.test(text) ||
+                /returned a non-zero code/i.test(text)
+            ) {
+                return 'error';
+            }
+
+            // Priority 2: warn (all case-insensitive)
+            if (
+                /\bwarn\b/i.test(text) ||
+                /\bwarning\b/i.test(text) ||
+                /\bdeprecated\b/i.test(text) ||
+                /\bretry\b/i.test(text) ||
+                /vulnerability/i.test(text)
+            ) {
+                return 'warn';
+            }
+
+            // Priority 3: ok (all case-insensitive)
+            if (
+                /\bsuccess\b/i.test(text) ||
+                /\bsuccessfully\b/i.test(text) ||
+                /\bstarted\b/i.test(text) ||
+                /\blistening\b/i.test(text) ||
+                /\b200\b/.test(text) ||
+                /\b201\b/.test(text) ||
+                /\b304\b/.test(text) ||
+                /\bcreated\b/i.test(text) ||
+                /Step \d+\/\d+/.test(text)
+            ) {
+                return 'ok';
+            }
+
+            // Priority 4: info (default)
+            return 'info';
+        }
+
+        /**
+         * Extract HH:MM:SS from a raw line, or return null.
+         * Handles ISO 8601 with T, ISO 8601 with space, bracketed datetime, and time-only formats.
+         * @param {string} text
+         * @returns {string|null}
+         */
+        function extractTimestamp(text) {
+            // 1. ISO 8601 with T: 2024-01-15T10:23:41
+            let m = text.match(/\d{4}-\d{2}-\d{2}T(\d{2}:\d{2}:\d{2})/);
+            if (m) return m[1];
+
+            // 2. ISO 8601 with space: 2024-01-15 10:23:41
+            m = text.match(/\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})/);
+            if (m) return m[1];
+
+            // 3. Bracketed datetime: [2024-01-15 10:23:41]
+            m = text.match(/\[\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\]/);
+            if (m) return m[1];
+
+            // 4. Time-only: 10:23:41
+            m = text.match(/\b(\d{2}:\d{2}:\d{2})\b/);
+            if (m) return m[1];
+
+            return null;
+        }
+
+        /**
+         * Classify a single raw text line into a LogLine.
+         * Uses local clock for ts when called from CLI input (ts === null).
+         * @param {string} rawText
+         * @param {string|null} ts
+         * @returns {{ ts: string, lvl: string, msg: string }}
+         */
+        function parseLine(rawText, ts = null) {
+            if (ts === null) {
+                const now = new Date();
+                const hh = String(now.getHours()).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                const ss = String(now.getSeconds()).padStart(2, '0');
+                ts = `${hh}:${mm}:${ss}`;
+            }
+            return {
+                ts,
+                lvl: classify(rawText),
+                msg: rawText,
+            };
+        }
+
+        /**
+         * Parse a block of raw text (newline-separated).
+         * Extracts timestamps from the text itself; falls back to '--:--:--'.
+         * @param {string} rawText
+         * @returns {{ ts: string, lvl: string, msg: string }[]}
+         */
+        function parseBlock(rawText) {
+            return rawText
+                .split('\n')
+                .filter(line => line.trim() !== '')
+                .map(line => ({
+                    ts: extractTimestamp(line) ? ? '--:--:--',
+                    lvl: classify(line),
+                    msg: line,
+                }));
+        }
+
+        // ── Session State ────────────────────────────────────────────────────────
+
+        /** @type {{ ts: string, lvl: string, msg: string }[]} */
+        let session = [];
+
+        /**
+         * Push LogLine[] into session, then re-render stats and terminal.
+         * @param {{ ts: string, lvl: string, msg: string }[]} lines
+         */
+        function appendLines(lines) {
+            session.push(...lines);
+            renderStats();
+            renderTerminal();
+        }
+
+        /**
+         * Recompute all four counters from session and update the DOM.
+         * Called after every session mutation.
+         */
+        function renderStats() {
+            const total = session.length;
+            const errors = session.filter(l => l.lvl === 'error').length;
+            const warnings = session.filter(l => l.lvl === 'warn').length;
+            const success = session.filter(l => l.lvl === 'ok' || l.lvl === 'info').length;
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-errors').textContent = errors;
+            document.getElementById('stat-warnings').textContent = warnings;
+            document.getElementById('stat-success').textContent = success;
+        }
+
+        /**
+         * Re-render the full terminal panel from session[].
+         * Appends a <div> per LogLine with severity class and escaped content.
+         * Auto-scrolls to bottom after render.
+         */
+        function renderTerminal() {
+            const terminal = document.getElementById('terminal-panel');
+            terminal.innerHTML = '';
+            for (const {
+                    ts,
+                    lvl,
+                    msg
+                } of session) {
+                const div = document.createElement('div');
+                div.className = `log-line ${lvl}`;
+                div.innerHTML = `[${ts}] ${escHtml(msg)}`;
+                terminal.appendChild(div);
+            }
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // ── Preset Data ─────────────────────────────────────────────────────────
+
+        const PRESET_NPM = [{
+                ts: '10:23:41',
+                lvl: 'info',
+                msg: 'npm install'
+            },
+            {
+                ts: '10:23:42',
+                lvl: 'ok',
+                msg: 'added 312 packages in 4.2s'
+            },
+            {
+                ts: '10:23:42',
+                lvl: 'warn',
+                msg: 'npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory.'
+            },
+            {
+                ts: '10:23:43',
+                lvl: 'warn',
+                msg: 'npm warn peer dependency: react-dom@18.2.0 requires react@^18.0.0 but none is installed'
+            },
+            {
+                ts: '10:23:43',
+                lvl: 'error',
+                msg: 'npm error ERESOLVE unable to resolve dependency tree'
+            },
+            {
+                ts: '10:23:43',
+                lvl: 'error',
+                msg: 'npm error Found: webpack@4.46.0'
+            },
+            {
+                ts: '10:23:44',
+                lvl: 'error',
+                msg: 'npm error Could not resolve dependency: peer webpack@"^5.0.0" from css-loader@6.8.1'
+            },
+            {
+                ts: '10:23:44',
+                lvl: 'info',
+                msg: 'npm notice Run `npm install --legacy-peer-deps` to accept an incorrect dependency resolution'
+            },
+            {
+                ts: '10:23:45',
+                lvl: 'error',
+                msg: 'ENOENT: no such file or directory, open \'/app/node_modules/.package-lock.json\''
+            },
+            {
+                ts: '10:23:45',
+                lvl: 'info',
+                msg: 'npm timing npm:load Completed in 312ms'
+            },
+        ];
+
+        const PRESET_DOCKER = [{
+                ts: '11:05:10',
+                lvl: 'ok',
+                msg: 'Step 1/8 : FROM node:18-alpine'
+            },
+            {
+                ts: '11:05:11',
+                lvl: 'ok',
+                msg: 'Step 2/8 : WORKDIR /app'
+            },
+            {
+                ts: '11:05:11',
+                lvl: 'ok',
+                msg: 'Step 3/8 : COPY package*.json ./'
+            },
+            {
+                ts: '11:05:12',
+                lvl: 'ok',
+                msg: 'Step 4/8 : RUN npm install'
+            },
+            {
+                ts: '11:05:18',
+                lvl: 'warn',
+                msg: 'npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported'
+            },
+            {
+                ts: '11:05:19',
+                lvl: 'error',
+                msg: "Module not found: Error: Can't resolve './src/config' in '/app'"
+            },
+            {
+                ts: '11:05:19',
+                lvl: 'error',
+                msg: 'webpack compiled with 1 error'
+            },
+            {
+                ts: '11:05:20',
+                lvl: 'info',
+                msg: 'The command \'/bin/sh -c npm run build\' returned a non-zero code: 1'
+            },
+            {
+                ts: '11:05:20',
+                lvl: 'info',
+                msg: 'Build context: 142 files, 2.3MB transferred'
+            },
+        ];
+
+        const PRESET_PYTHON = [{
+                ts: '14:32:01',
+                lvl: 'info',
+                msg: 'Starting application server on 0.0.0.0:8000'
+            },
+            {
+                ts: '14:32:02',
+                lvl: 'ok',
+                msg: 'Application started successfully'
+            },
+            {
+                ts: '14:32:03',
+                lvl: 'ok',
+                msg: 'Database connection pool created (size=5)'
+            },
+            {
+                ts: '14:32:15',
+                lvl: 'warn',
+                msg: 'WARNING: Retrying database connection (attempt 1/3)'
+            },
+            {
+                ts: '14:32:18',
+                lvl: 'warn',
+                msg: 'WARNING: Retrying database connection (attempt 2/3)'
+            },
+            {
+                ts: '14:32:21',
+                lvl: 'error',
+                msg: 'sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) could not connect to server'
+            },
+            {
+                ts: '14:32:21',
+                lvl: 'error',
+                msg: 'FATAL: password authentication failed for user "appuser"'
+            },
+            {
+                ts: '14:32:22',
+                lvl: 'error',
+                msg: 'Database authentication failure: invalid credentials for host db.internal:5432'
+            },
+            {
+                ts: '14:32:22',
+                lvl: 'info',
+                msg: 'Traceback (most recent call last): File "app/db.py", line 42, in connect'
+            },
+            {
+                ts: '14:32:23',
+                lvl: 'info',
+                msg: 'Shutting down due to unrecoverable database error'
+            },
+        ];
+
+        const PRESET_NGINX = [{
+                ts: '09:14:01',
+                lvl: 'ok',
+                msg: '2024-01-15 09:14:01 [notice] nginx/1.25.3 started'
+            },
+            {
+                ts: '09:14:02',
+                lvl: 'ok',
+                msg: '192.168.1.10 - - [15/Jan/2024:09:14:02] "GET /api/health 200 12ms"'
+            },
+            {
+                ts: '09:14:05',
+                lvl: 'info',
+                msg: '192.168.1.11 - - [15/Jan/2024:09:14:05] "GET /static/app.js 304 1ms"'
+            },
+            {
+                ts: '09:14:08',
+                lvl: 'error',
+                msg: 'connect() failed (111: ECONNREFUSED) while connecting to upstream, upstream: "http://127.0.0.1:3000"'
+            },
+            {
+                ts: '09:14:08',
+                lvl: 'error',
+                msg: 'upstream prematurely closed connection while reading response header from upstream'
+            },
+            {
+                ts: '09:14:09',
+                lvl: 'warn',
+                msg: 'upstream response timeout, retrying with next upstream server'
+            },
+            {
+                ts: '09:14:10',
+                lvl: 'error',
+                msg: '192.168.1.20 - - [15/Jan/2024:09:14:10] "GET /admin 403 0.5ms"'
+            },
+            {
+                ts: '09:14:12',
+                lvl: 'error',
+                msg: '192.168.1.99 - - [15/Jan/2024:09:14:12] "POST /api/data 429 0.1ms" rate limit exceeded'
+            },
+            {
+                ts: '09:14:15',
+                lvl: 'warn',
+                msg: 'upstream disconnect: peer closed connection in SSL handshake'
+            },
+            {
+                ts: '09:14:20',
+                lvl: 'info',
+                msg: 'worker process 1234 exited with code 0'
+            },
+        ];
+
+        /** @type {Object.<string, Array<{ts:string, lvl:string, msg:string}>>} */
+        const PRESETS = {
+            'npm-install': PRESET_NPM,
+            'docker-build': PRESET_DOCKER,
+            'python-app': PRESET_PYTHON,
+            'nginx-logs': PRESET_NGINX,
+        };
+
+        // ── CLI Input Event Handlers ─────────────────────────────────────────────
+
+        /**
+         * Process the CLI input field: validate length, parse lines, append, clear.
+         */
+        function handleCapture() {
+            const input = document.getElementById('cli-input');
+            const value = input.value;
+
+            if (value.length > 10000) {
+                alert('Input exceeds 10,000 character limit. Please shorten your input and try again.');
+                return;
+            }
+
+            const lines = value
+                .split('\n')
+                .filter(line => line.trim() !== '')
+                .map(line => parseLine(line));
+
+            if (lines.length > 0) {
+                appendLines(lines);
+            }
+
+            input.value = '';
+        }
+
+        document.getElementById('cli-input').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                handleCapture();
+            }
+        });
+
+        document.getElementById('capture-btn').addEventListener('click', handleCapture);
+
+        // ── Raw Paste Panel Event Handler ────────────────────────────────────────
+
+        document.getElementById('parse-btn').addEventListener('click', function() {
+            const value = document.getElementById('raw-textarea').value;
+            const lines = parseBlock(value);
+            if (lines.length > 0) {
+                appendLines(lines);
+            }
+            // Do NOT clear textarea (Requirement 2.6)
+        });
+
+        // ── Preset Buttons Event Handler ─────────────────────────────────────────
+
+        document.getElementById('preset-row').addEventListener('click', function(e) {
+            const btn = e.target.closest('button[data-preset]');
+            if (!btn) return;
+            const presetKey = btn.dataset.preset;
+            const preset = PRESETS[presetKey];
+            if (preset) {
+                appendLines(preset);
+            }
+        });
+
+        // ── Clear Session Button Event Handler ───────────────────────────────────
+
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            clearSession();
+        });
+
+        /**
+         * Serialize session to prompt text, call NVIDIA API, parse response.
+         * Returns a Promise<AnalysisResult>.
+         * Throws on network error, non-2xx status, or JSON parse failure.
+         * @param {string} apiKey
+         * @returns {Promise<{summary:string, health:string, errors:Array, fixes:Array, insight:string}>}
+         */
+        async function analyzeSession(apiKey) {
+            if (session.length === 0) {
+                throw new Error('Session is empty. Add some log lines before analyzing.');
+            }
+
+            // Serialize session lines as [HH:MM:SS] [LEVEL] message
+            const sessionText = session
+                .map(({
+                    ts,
+                    lvl,
+                    msg
+                }) => `[${ts}] [${lvl.toUpperCase()}] ${msg}`)
+                .join('\n');
+
+            const prompt =
+                'You are a CLI log analyzer. Analyze the following terminal session and return ONLY a JSON object (no markdown, no code fences) with these keys:\n' +
+                '- summary: string (one paragraph overview)\n' +
+                '- health: "healthy" | "degraded" | "critical"\n' +
+                '- errors: array of up to 3 objects with "title" and "detail"\n' +
+                '- fixes: array of up to 3 objects with "description" and optional "command"\n' +
+                '- insight: string (one pro tip)\n\n' +
+                'Session:\n' +
+                sessionText;
+
+            let response;
+            try {
+                response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                    },
+                    body: JSON.stringify({
+                        model: 'nvidia/llama-3.1-nemotron-ultra-253b-v1',
+                        max_tokens: 1000,
+                        messages: [{
+                            role: 'user',
+                            content: prompt
+                        }],
+                    }),
+                });
+            } catch (err) {
+                throw new Error(`Network error while contacting NVIDIA API: ${err.message}`);
+            }
+
+            if (!response.ok) {
+                let body = '';
+                try {
+                    body = await response.text();
+                } catch (_) {
+                    /* ignore */
+                }
+                throw new Error(`NVIDIA API returned HTTP ${response.status}: ${body}`);
+            }
+
+            const data = await response.json();
+            let raw = data.choices[0].message.content;
+
+            // Strip residual code fences (```json ... ``` or ``` ... ```)
+            raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+
+            let result;
+            try {
+                result = JSON.parse(raw);
+            } catch (_) {
+                throw new Error(`Failed to parse AI response as JSON. Raw content: ${raw}`);
+            }
+
+            return result;
+        }
+
+        /**
+         * Render an AnalysisResult into the AI panel DOM.
+         * All text passed through escHtml before innerHTML insertion.
+         * @param {{summary:string, health:string, errors:Array<{title:string,detail:string}>, fixes:Array<{description:string,command?:string}>, insight:string}} result
+         */
+        function renderAnalysis(result) {
+            // Update health badge
+            const badge = document.getElementById('health-badge');
+            badge.classList.remove('healthy', 'degraded', 'critical');
+            if (result.health === 'healthy' || result.health === 'degraded' || result.health === 'critical') {
+                badge.classList.add(result.health);
+            }
+            badge.textContent = escHtml(result.health || '—');
+
+            // Build errors HTML (up to 3)
+            const errors = (result.errors || []).slice(0, 3);
+            let errorsHtml = '';
+            if (errors.length > 0) {
+                const items = errors.map(e =>
+                    `<div class="ai-error-item"><strong>${escHtml(e.title)}</strong>: ${escHtml(e.detail)}</div>`
+                ).join('');
+                errorsHtml = `<div class="ai-errors"><strong>Errors:</strong>${items}</div>`;
+            }
+
+            // Build fixes HTML (up to 3)
+            const fixes = (result.fixes || []).slice(0, 3);
+            let fixesHtml = '';
+            if (fixes.length > 0) {
+                const items = fixes.map(f => {
+                    const cmd = f.command ? ` [<code>${escHtml(f.command)}</code>]` : '';
+                    return `<div class="ai-fix-item">${escHtml(f.description)}${cmd}</div>`;
+                }).join('');
+                fixesHtml = `<div class="ai-fixes"><strong>Fixes:</strong>${items}</div>`;
+            }
+
+            document.getElementById('ai-panel').innerHTML =
+                `<div class="ai-summary">${escHtml(result.summary || '')}</div>` +
+                errorsHtml +
+                fixesHtml +
+                `<div class="ai-insight"><strong>Pro tip:</strong> ${escHtml(result.insight || '')}</div>`;
+        }
+
+        /**
+         * Render an error string into the AI panel with error styling.
+         * @param {string} message
+         */
+        function renderAnalysisError(message) {
+            document.getElementById('ai-panel').innerHTML =
+                `<div class="ai-error">Error: ${escHtml(message)}</div>`;
+        }
+
+        // ── Analyze with AI Button Event Handler ────────────────────────────────
+
+        document.getElementById('analyze-btn').addEventListener('click', async function() {
+            const apiKey = document.getElementById('ai-key-input').value;
+            const btn = document.getElementById('analyze-btn');
+            const panel = document.getElementById('ai-panel');
+
+            // Show loading indicator and disable button
+            panel.innerHTML = '<span class="ai-loading">Analyzing…</span>';
+            btn.disabled = true;
+
+            try {
+                const result = await analyzeSession(apiKey);
+                renderAnalysis(result);
+            } catch (err) {
+                renderAnalysisError(err.message);
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        /**
+         * Reset session to [] and clear all UI panels to their idle state.
+         * Does NOT make any API calls.
+         */
+        function clearSession() {
+            session = [];
+
+            // Clear Terminal Panel
+            document.getElementById('terminal-panel').innerHTML = '';
+
+            // Reset Stats Bar counters to 0
+            document.getElementById('stat-total').textContent = '0';
+            document.getElementById('stat-errors').textContent = '0';
+            document.getElementById('stat-warnings').textContent = '0';
+            document.getElementById('stat-success').textContent = '0';
+
+            // Clear Raw Paste textarea
+            document.getElementById('raw-textarea').value = '';
+
+            // Reset AI panel to idle placeholder
+            document.getElementById('ai-panel').innerHTML =
+                '<span class="ai-placeholder">AI analysis will appear here after clicking "Analyze with AI".</span>';
+
+            // Reset health badge
+            const badge = document.getElementById('health-badge');
+            badge.textContent = '—';
+            badge.classList.remove('healthy', 'degraded', 'critical');
+        }
+    </script>
+</body>
+
+</html>
