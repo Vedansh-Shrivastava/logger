@@ -941,19 +941,14 @@
 
             let response;
             try {
-                response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+                response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: 'nvidia/llama-3.1-nemotron-ultra-253b-v1',
-                        max_tokens: 1000,
-                        messages: [{
-                            role: 'user',
-                            content: prompt
-                        }],
+                        prompt,
+                        apiKey
                     }),
                 });
             } catch (err) {
