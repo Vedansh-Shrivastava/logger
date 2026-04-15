@@ -570,11 +570,14 @@
             return rawText
                 .split('\n')
                 .filter(line => line.trim() !== '')
-                .map(line => ({
-                    ts: extractTimestamp(line) ? ? '--:--:--',
-                    lvl: classify(line),
-                    msg: line,
-                }));
+                .map(line => {
+                    const ts = extractTimestamp(line);
+                    return {
+                        ts: ts !== null ? ts : '--:--:--',
+                        lvl: classify(line),
+                        msg: line,
+                    };
+                });
         }
 
         // ── Session State ────────────────────────────────────────────────────────
