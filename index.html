@@ -921,7 +921,10 @@
             }
 
             // Serialize session lines as [HH:MM:SS] [LEVEL] message
-            const sessionText = session
+            // Cap at 500 most recent lines to stay within model context limits
+            const MAX_LINES = 500;
+            const trimmed = session.length > MAX_LINES ? session.slice(-MAX_LINES) : session;
+            const sessionText = trimmed
                 .map(({
                     ts,
                     lvl,
