@@ -28,7 +28,7 @@ export default async (req) => {
             'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-            model: 'nvidia/llama-3.1-nemotron-ultra-253b-v1',
+            model: 'meta/llama-3.1-8b-instruct',
             max_tokens: 1000,
             messages: [{
                 role: 'user',
@@ -48,5 +48,6 @@ export default async (req) => {
 };
 
 export const config = {
-    path: '/api/analyze'
+    path: '/api/analyze',
+    maxDuration: 60,
 };
